@@ -1,3 +1,8 @@
 # Mobile-Local
 
-This is a project I did for a [CS 76](https://www.cs76.net/Main_Page) assignment.
+This is a project I did for a [CS 76](https://www.cs76.net/Main_Page) assignment. The project specc was to create a mobile application using HTML, CSS, and Javascript that, given the user's location, display the news and weather for their area.
+
+
+The site is best viewed on a smartphone (I haven't tested in an Android device for the longest time, but I have tested it on iOS's Mobile Safari). You _could_ also just resize your browser.
+
+Anyway, you can view it online here: http://ali.io/mobile-local/
