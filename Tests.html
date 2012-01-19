@@ -1,0 +1,186 @@
+<!--        Mobile Local
+	 Harvard Summer 2011 - CS76
+	         Ali Ukani          -->
+	
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Mobile Local</title>
+		
+		<meta name="viewport" content="width=device-width">
+		<script src="http://code.jquery.com/jquery-1.6.1.min.js"></script>
+		<!-- <link rel="stylesheet" href="http://code.jquery.com/mobile/1.0b1/jquery.mobile-1.0b1.min.css" />
+		<script src="http://code.jquery.com/mobile/1.0b1/jquery.mobile-1.0b1.min.js"></script> -->
+		
+		<script>
+			
+			/* Easier YQL calls
+			     Requires a YQL query and a function that handles the response.
+			     Performs that function the resulting JSON. */
+			function getYQL(query, f){
+				var url = "http://query.yahooapis.com/v1/public/yql?q=" + encodeURIComponent(query) + "&format=json&diagnostics=true&env=store://datatables.org/alltableswithkeys";
+				
+				$.getJSON(url, function(response) {
+					console.log("YQL:\t" + query);
+					f(response);
+				});
+			}
+			
+			// Fetch news for a given location
+			// RSS from Google News -> JSONP
+			// Inserts results onto page
+			function getNews(loc){
+				// Query GoogleNews using YQL
+				var query = "SELECT * FROM rss WHERE url = \"http://news.google.com/news?geo=" + encodeURIComponent(loc) + "&output=rss\"";
+				
+				console.log("Fetching news for " + loc + "...");
+				
+				getYQL(query, function(response){
+					$("#news h1").text("News for " + loc);
+					$("#news ul").html("");
+					// Place results in #news>ul
+					$.each(response.query.results.item, function(){
+						$("#news ul").append("<li>" + this.title + "</li>")
+					});
+				});
+			}		
+			
+			// Fetch weather from Yahoo! through YQL
+			// Requires a zip code (?)
+			function getForecast(loc){
+				// Weather querying with non-zip inputs: http://jonathantrevor.net/?p=40
+				var query = "SELECT * FROM weather.bylocation WHERE location=" + '"' + loc + '"';
+				console.log("Fetching weather forecast for " + loc + "...");
+				
+				getYQL(query, function(response){
+					$("#weather span").html("");
+					var locFormatted = response.query.results.weather.rss.channel.location.city + ", " + response.query.results.weather.rss.channel.location.region;
+					var condition = response.query.results.weather.rss.channel.item.condition;
+					var weatherImage = "http://l.yimg.com/a/i/us/nws/weather/gr/" + condition.code + "d.png";
+					$("#weather span").html("The weather in " + locFormatted + " is " + condition.text.toLowerCase() + " at " + condition.temp + " &deg;F.<br><img src='" + weatherImage + "' />");
+				});
+			}
+			
+			// Geocoding
+			// Takes a latitude and longitude, 
+			function geocode(lat, lng, sensor, f){
+				console.log("Geocoding...");
+				
+				var url = "https://maps.googleapis.com/maps/api/geocode/json?latlng=" + lat + "," + lng + "&sensor=" + sensor;
+				var query = "SELECT * FROM json WHERE url = \"" + url + "\"";
+				
+				getYQL(query, f);
+			}
+			
+			// Geolocation
+			function geoLocate(){
+				console.log("Geolocating...");
+				navigator.geolocation.getCurrentPosition(function(posn){
+					console.log("Got position!");
+					console.log(posn);
+					
+					var lat = posn.coords.latitude;
+					var lng = posn.coords.longitude;
+					var sensor = true;
+					
+					geocode(lat, lng, sensor, function(response){
+						var zip = response.query.results.json.results[0].address_components[7].short_name;
+						$("#find-me input:text").val(zip);
+						console.log(zip);
+						$("#find-me input:submit").submit();
+						//$("#find-me input:button").removeAttr('disabled');
+					});
+					
+					}, function(error){
+					console.log(error);
+					//$("#find-me input:button").removeAttr('disabled');
+				});
+			}
+			
+			// Saves a loc to localStorage
+			function storeLoc(loc){
+				console.log("Storing " + loc);
+				if(cached.locs.unshift(loc)){
+					localStorage["cached"] = JSON.stringify(cached);
+				}
+				console.log(cached.locs.length + " locs stored.");
+			}
+			
+			// Main function.
+			function main(loc){
+				// Fetch info
+				getNews(loc);
+				getForecast(loc);
+				storeLoc(loc);
+			}
+			
+			var cached;	// Stores the localStorage["cached"] object.
+			
+			// Do this stuff once the page loads.
+			$(function(){
+				
+				$("#find-me input:submit").attr('disabled', 'disabled');
+				
+				// Enable submit button when the text box has content
+				$("#find-me input:text").keyup(function(){
+					$("#find-me input:submit").removeAttr('disabled');
+				});
+				
+				// Event Handler for form submission
+				$("#find-me").submit(function() {
+					main($("#find-me input:text").val());
+					return false;
+				});
+				
+				// Button handler for geolocating
+				$("#find-me input:button").click(function(){
+					//$("#find-me input:button").attr('disabled', 'disabled');
+					geoLocate();
+				});
+				
+			
+				// Load localStorage
+				if(localStorage["cached"]){
+					// Load
+					cached = $.parseJSON(localStorage["cached"]);
+					console.log("localStorage loaded.");
+					//$("#ls-printout div").html("<pre>" + localStorage["cached"].locs +"</pre>");
+				}else{
+					// First use
+					cached = {"locs":[]};
+					console.log("localStorage initialized.");
+					localStorage["cached"] = JSON.stringify(cached);
+				}
+				
+			});
+			
+		</script>
+	</head>
+		
+	<body>
+		<header>
+			<h1>Mobile Local</h1>
+		</header>
+		<form id="find-me">
+			<input type="text"   placeholder="Enter your location" />
+			<input type="submit" value="Beam me up, Scotty!" />
+			<input type="button" value="Catch me if you can!" />
+		</form>
+		
+		<div id="news">
+			<h1>News</h1>
+			<ul></ul>
+		</div>
+		
+		<div id="weather">
+			<h1>Weather</h1>
+			<span></span>
+		</div>
+		
+		<div id="ls-printout">
+			<h1>LocalStorage</h1>
+			<div></div>
+			<ul></ul>
+		</div>
+	</body>
+</html>

@@ -1,0 +1,72 @@
+<!--        Mobile Local
+	 Harvard Summer 2011 - CS76
+	         Ali Ukani          -->
+	
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Mobile Local</title>
+		
+		<meta name="viewport" content="width=device-width">
+		<link rel="stylesheet" href="http://code.jquery.com/mobile/1.0b1/jquery.mobile-1.0b1.min.css" />
+		<script src="http://code.jquery.com/jquery-1.6.1.min.js"></script>
+		<script src="http://code.jquery.com/mobile/1.0b1/jquery.mobile-1.0b1.min.js"></script>
+		
+		<script type="text/javascript">
+			<![CDATA[
+			
+			$(document).ready(function() { 
+				
+			 });
+			
+			function getNews(zip){
+				var url = "http://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20rss%20where%20url%20%3D%20'http%3A%2F%2Fnews.google.com%2Fnews%3Fgeo%3D" + zip + "%26output%3Drss'&format=json&callback=cbfunc"
+				
+				$.get(url, function(data) {
+					$('.result').html(data);
+					alert('Load was performed.');
+				});
+			}
+			
+			]]>
+		</script>
+		
+	</head>
+		
+	<body>
+		<!-- The main page -->
+		<div data-role="page" id="main">
+			<div data-role="header">
+				<h1>Foo</h1>
+			</div><!-- /header -->
+
+			<div data-role="content">	
+				<h2>Location<h2>
+				<form onsubmit="return false;">
+					<input type="text" id="loc" placeholder="Enter your city and state or zip code" />
+					<button type="submit" name="submit" value="submit-value">Submit</button> 		
+				</form>
+			</div><!-- /content -->
+
+			<div data-role="footer">
+				<h4>Page Footer</h4>
+			</div><!-- /footer -->
+		</div><!-- end page -->
+		
+		<!-- News -->
+		<div data-role="page" id="main">
+		
+		</div><!-- end page -->
+		
+		<!-- Weather -->
+		<div data-role="page" id="main">
+		
+		</div><!-- end page -->
+		
+		<!-- History -->
+		<div data-role="page" id="main">
+		
+		</div><!-- end page -->
+		
+	</body>
+</html>

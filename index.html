@@ -1,0 +1,251 @@
+<!--        Mobile Local
+	 Harvard Summer 2011 - CS76
+	         Ali Ukani          -->
+	
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Mobile Local</title>
+		
+		<meta name="viewport" content="width=device-width">
+		
+		<link rel="stylesheet" href="http://code.jquery.com/mobile/1.0b1/jquery.mobile-1.0b1.min.css" />
+		<script src="http://code.jquery.com/jquery-1.6.1.min.js"></script>
+		<script src="http://code.jquery.com/mobile/1.0b1/jquery.mobile-1.0b1.min.js"></script>
+		
+		<script>
+			
+			/* Easier YQL calls
+			     Requires a YQL query and a function that handles the response.
+			     Performs that function the resulting JSON. */
+			function getYQL(query, f){
+				var url = "http://query.yahooapis.com/v1/public/yql?q=" + encodeURIComponent(query) + "&format=json&diagnostics=true&env=store://datatables.org/alltableswithkeys";
+				
+				$.getJSON(url, function(response) {
+					console.log("YQL:\t" + query);
+					if(response.query.results == null){
+						return false;
+					}else{
+						f(response);
+						$.mobile.changePage("#result");
+					}
+				});
+			}
+			
+			// Fetch news for a given location
+			// RSS from Google News -> JSONP
+			// Inserts results onto page
+			function getNews(loc){
+				// Query GoogleNews using YQL
+				var query = "SELECT * FROM rss WHERE url = \"http://news.google.com/news?geo=" + encodeURIComponent(loc) + "&output=rss\"";
+				
+				console.log("Fetching news for " + loc + "...");
+				
+				getYQL(query, function(response){
+					$("#news ul").text("");
+					// Place results in #news>ul
+					// News item links go through the Instapaper Mobilizer -- http://instapaper.com/m
+					$.each(response.query.results.item, function(){
+						$("#news ul").append("<li><a href='http://www.instapaper.com/m?u=" + encodeURIComponent(this.link) + "' target='_blank'>" + this.title + "</a></li>");
+					});
+				});
+			}		
+			
+			// Fetch weather from Yahoo! through YQL
+			// Requires a zip code (?)
+			function getForecast(loc){
+				// Weather querying with non-zip inputs: http://jonathantrevor.net/?p=40
+				var query = "use 'http://github.com/yql/yql-tables/raw/master/weather/weather.woeid.xml' as weather; select * from weather where w in (select woeid from geo.places where text='" + loc + "' limit 1) and u='c';";
+				
+				console.log("Fetching weather forecast for " + loc + "...");
+				
+				getYQL(query, function(response){
+					$("#weather span").html("");
+					var locFormatted = response.query.results.rss.channel.location.city + ", " + response.query.results.rss.channel.location.region;
+					var condition = response.query.results.rss.channel.item.condition;
+					
+					var weatherImage = "http://l.yimg.com/a/i/us/nws/weather/gr/" + condition.code + "d.png";
+					$("#weather span").html("<img src='" + weatherImage + "' /><br />The weather in " + locFormatted + " is " + condition.text.toLowerCase() + " at " + condition.temp + " &deg;F.");
+				});
+			}
+			
+			// Geocoding
+			// Takes a latitude and longitude, 
+			function geocode(lat, lng, sensor, f){
+				console.log("Geocoding...");
+				
+				var url = "https://maps.googleapis.com/maps/api/geocode/json?latlng=" + lat + "," + lng + "&sensor=" + sensor;
+				var query = "SELECT * FROM json WHERE url = \"" + url + "\"";
+				
+				getYQL(query, f);
+			}
+			
+			// Geolocation
+			function geoLocate(){
+				console.log("Geolocating...");
+				navigator.geolocation.getCurrentPosition(function(posn){
+					console.log("Got position!");
+					console.log(posn);
+					
+					var lat = posn.coords.latitude;
+					var lng = posn.coords.longitude;
+					var sensor = true;
+					
+					geocode(lat, lng, sensor, function(response){
+						var zip = response.query.results.json.results[0].address_components[7].short_name;
+						$("#find-me input:text").val(zip);
+						console.log(zip);
+						$("#find-me input:submit").submit();
+						//$("#find-me input:button").removeAttr('disabled');
+					});
+				}, function(error){
+					console.log(error);
+				});
+			}
+			
+			// Saves a loc to localStorage
+			function storeLoc(loc){
+				console.log("Storing " + loc);
+				if(cached.locs.unshift(loc)){
+					if(cached.locs.length > 10){cached.locs.pop();}
+					
+					localStorage["cached"] = JSON.stringify(cached);
+				}
+				
+				console.log(cached.locs.length + " locs stored.");
+			}
+			
+			// Main function
+			function main(loc){
+				// Fetch info
+				getNews(loc);
+				getForecast(loc);
+				
+				storeLoc(loc);
+				$("#result h1").text(loc);
+			}
+			
+			var cached;	// Stores the localStorage["cached"] object.
+			
+			// Do this stuff once the page loads.
+			$(function(){
+				
+				// Event Handler for form submission
+				$("#find-me").submit(function() {
+					main($("#find-me input:text").val());
+					return false;
+				});
+				
+				// Button handler for geolocating
+				$("#geolocBtn").click(function(){
+					geoLocate();
+				});
+
+				// Click handler for showing recent locations
+				$("#recentLocsBtn").click(function(){
+					$("#recent ul").html("");
+					$.each(cached.locs, function(){
+						var thisLoc = this;
+						$("#recent ul").append("<li><a href='#result'>" + thisLoc + "</a></li>");
+					});
+					
+					$("#recent ul li a").each(function(){
+						$(this).click(function(){
+							main(this.text);
+						});
+					});
+					
+					$.mobile.changePage("#recent");
+				});
+				
+			
+				// Load localStorage
+				if(localStorage["cached"]){
+					// Load
+					cached = $.parseJSON(localStorage["cached"]);
+					console.log("localStorage loaded.");
+				}else{
+					// First use
+					cached = {"locs":[]};
+					console.log("localStorage initialized.");
+					localStorage["cached"] = JSON.stringify(cached);
+				}
+			});
+			
+		</script>
+	</head>
+		
+	<body>
+		
+		<!-- The main page -->
+		<div data-role="page" id="main">
+			<div data-role="header">
+				<h1>Mobile Local</h1>
+			</div><!-- /header -->
+
+			<div data-role="content">	
+				<h2>Location<h2>
+					<form id="find-me" action="#result">
+						<input type="text"   placeholder="Enter your location" />
+						<input type="submit" value="Here I am!" />
+						<input type="button" id="geolocBtn" value="Where am I?" />
+					</form>
+					
+				<a href="#" id="recentLocsBtn" data-role="button">Recent searches</a>
+			</div><!-- /content -->
+
+			<div data-role="footer" class="ui-bar">
+				<h3>Ali Ukani - CS76</a>
+			</div><!-- /footer -->
+		</div>
+		<!-- end page -->
+		
+		
+		
+		<!-- The Result -->
+		<div data-role="page" id="result" data-add-back-btn="true">
+			<div data-role="header">
+				<h1>Result</h1>
+			</div><!-- /header -->
+			
+			<div data-role="content">
+				<!-- Weather -->
+				<div id="weather">
+					<h2>Weather</h2>
+					<span></span>
+				</div>
+				
+				<!-- News -->
+				<div id="news">
+					<h2>News</h2>
+					<ul data-role="listview" data-inset="true"></ul>
+				</div>
+			</div><!-- /content -->
+
+			<div data-role="footer">
+				<h4>Ali Ukani - CS76</h4>
+			</div><!-- /footer -->	
+		</div>
+		<!-- end page -->
+		
+		
+		<!-- Recent Locations -->
+		<div data-role="page" id="recent" data-add-back-btn="true">
+			<div data-role="header">
+				<h1>Recent Locations</h1>
+			</div><!-- /header -->
+			
+			<div data-role="content">
+				<ul data-role="listview"></ul>
+			</div><!-- /content -->
+
+			<div data-role="footer">
+				<h3>Ali Ukani - CS76</h3>
+			</div><!-- /footer -->	
+		</div>
+		<!-- end page -->
+		
+		
+		
+	</body>
+</html>
